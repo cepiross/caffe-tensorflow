@@ -38,7 +38,7 @@ class DataInjector(object):
         caffe = get_caffe_resolver().caffe
         net = caffe.Net(self.def_path, self.data_path, caffe.TEST)
         data = lambda blob: blob.data
-        self.params = [(k, map(data, v)) for k, v in net.params.items()]
+        self.params = [(k, list(map(data, v))) for k, v in net.params.items()]
 
     def load_using_pb(self):
         data = get_caffe_resolver().NetParameter()
@@ -118,13 +118,15 @@ class DataReshaper(object):
         for node in graph.nodes:
             if node.data is None:
                 continue
+            if len(list(node.data)) == 0:
+                continue
             if node.kind not in self.reshaped_node_types:
                 # Check for 2+ dimensional data
                 if any(len(tensor.shape) > 1 for tensor in node.data):
                     print_stderr('Warning: parmaters not reshaped for node: {}'.format(node))
                 continue
             transpose_order = self.map(node.kind)
-            weights = node.data[0]
+            weights = list(node.data)[0]
             if (node.kind == NodeKind.InnerProduct) and self.has_spatial_parent(node):
                 # The FC layer connected to the spatial layer needs to be
                 # re-wired to match the new spatial ordering.
@@ -274,6 +276,8 @@ class ParameterNamer(object):
         for node in graph.nodes:
             if node.data is None:
                 continue
+            if len(list(node.data)) == 0:
+                continue
             if node.kind in (NodeKind.Convolution, NodeKind.InnerProduct):
                 names = ('weights',)
                 if node.parameters.bias_term:
@@ -285,6 +289,6 @@ class ParameterNamer(object):
             else:
                 print_stderr('WARNING: Unhandled parameters: {}'.format(node.kind))
                 continue
-            assert len(names) == len(node.data)
+            assert len(names) == len(list(node.data))
             node.data = dict(zip(names, node.data))
         return graph

@@ -44,7 +44,11 @@ class TensorFlowNode(object):
 
     def format(self, arg):
         '''Returns a string representation for the given value.'''
-        return "'%s'" % arg if isinstance(arg, basestring) else str(arg)
+        try:
+            dummy = arg.decode()
+        except AttributeError:
+            arg = str(arg)
+        return "'%s'" % arg
 
     def pair(self, key, value):
         '''Returns key=formatted(value).'''
@@ -53,7 +57,7 @@ class TensorFlowNode(object):
     def emit(self):
         '''Emits the Python source for this node.'''
         # Format positional arguments
-        args = map(self.format, self.args)
+        args = list(map(self.format, self.args))
         # Format any keyword arguments
         if self.kwargs:
             args += [self.pair(k, v) for k, v in self.kwargs]
